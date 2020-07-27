@@ -216,18 +216,18 @@ class GenerateBaseMap(object):
         UpdateField("A1", source_field, '"法定图则"')
 
         messages.addMessage("第三步:计算建设用地方案C内且法定图则S外的部分A2...")
-        arcpy.Erase_analysis(construction, statutory, r"in_memory\A2")
+        arcpy.Erase_analysis(construction, statutory, "A2")
 
         messages.addMessage("第四步:计算原总规P与A2的重叠部分A3...")
-        arcpy.Clip_analysis(planning, r"in_memory\A2", "A3") # self.output_path + os.path.sep + "A2"
+        arcpy.Clip_analysis(planning, "A2", "A3") # self.output_path + os.path.sep + "A2"
         UpdateField("A3", source_field, '"总规"')
         #
         messages.addMessage("第五步:计算A2内且原总规P外的A4...")
-        arcpy.Erase_analysis("in_memory\A2", planning, r"in_memory\A4")
-        UpdateField(r"in_memory\A4", source_field, '"补充"')
-        arcpy.SpatialJoin_analysis(r"in_memory\A4", supplement, r"in_memory\A4_join",
+        arcpy.Erase_analysis("A2", planning, "A4")
+        UpdateField("A4", source_field, '"补充"')
+        arcpy.SpatialJoin_analysis("A4", supplement, "A4_join",
                                    match_option="CLOSEST", search_radius=500)
-        arcpy.MakeFeatureLayer_management(r"in_memory\A4_join", "A4_join_lyr")
+        arcpy.MakeFeatureLayer_management("A4_join", "A4_join_lyr")
         arcpy.SelectLayerByAttribute_management("A4_join_lyr", "NEW_SELECTION", "主类<>'' AND 主类 IS NOT NULL")
         arcpy.CopyFeatures_management("A4_join_lyr", r"in_memory\non_empty")
 
@@ -250,10 +250,10 @@ class GenerateBaseMap(object):
         for field in fieldMappings.fields:
             if field.name not in output_fields:
                 fieldMappings.removeFieldMap(fieldMappings.findFieldMapIndex(field.name))
-        arcpy.Merge_management(["A1", "A3", "A4"], r"in_memory\A5", fieldMappings)
+        arcpy.Merge_management(["A1", "A3", "A4"], "A5", fieldMappings)
 
         messages.addMessage("第七步:整理字段并输出结果图层baseMap...")
-        arcpy.SpatialJoin_analysis(r"in_memory\A5", admin_region, r"in_memory\baseMap",  # r"in_memory\baseMap"
+        arcpy.SpatialJoin_analysis("A5", admin_region, r"in_memory\baseMap",  # r"in_memory\baseMap"
                                    match_option="HAVE_THEIR_CENTER_IN")
         arcpy.MakeFeatureLayer_management(r"in_memory\baseMap", "baseMap_lyr")
 
