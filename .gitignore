@@ -59,6 +59,7 @@ fabric.properties
 *.exe
 *.bak
 *.rar
+*.7z
 /res
 /image-data
 /image-anno
