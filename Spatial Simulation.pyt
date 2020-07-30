@@ -111,7 +111,17 @@ class GenerateBaseMap(object):
         if not arcpy.Exists(self.output_path):
             arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
-        params = [param0, param1, param2, param3, param4, param5, param6, output]
+        # 是否将中间结果输出到硬盘
+        param8 = arcpy.Parameter(
+            displayName="保存中间结果",
+            name="bStorage",
+            datatype="Boolean",
+            parameterType="Optional",
+            direction="input"
+        )
+        param8.value = False
+
+        params = [param0, param1, param2, param3, param4, param5, param6, output, param8]
         return params
 
     def isLicensed(self):
@@ -172,12 +182,41 @@ class GenerateBaseMap(object):
         admin_region = parameters[5].valueAsText
         supplement = parameters[6].valueAsText
         output = parameters[7].valueAsText
+        bStorage = parameters[8].value
 
         source_field = "来源"
         status_field = "状态"
         maincode_field = "主类"
         FAR_field = "容积率"
         admin_region_field = "行政区"
+
+        if arcpy.Describe(output).workspaceType == 'FileSystem':
+            res_table = "baseMap.shp"
+        elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
+            res_table = "baseMap"
+
+        if not bStorage:
+            A1 = r"in_memory\A1"
+            A2 = r"in_memory\A2"
+            A3 = r"in_memory\A3"
+            A4 = r"in_memory\A4"
+            A4_join = r"in_memory\A4_join"
+            A5 = r"in_memory\A5"
+        else:
+            if arcpy.Describe(output).workspaceType == 'FileSystem':
+                A1 = "A1.shp"
+                A2 = "A2.shp"
+                A3 = "A3.shp"
+                A4 = "A4.shp"
+                A4_join = "A4_join.shp"
+                A5 = "A5.shp"
+            elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
+                A1 = "A1"
+                A2 = "A2"
+                A3 = "A3"
+                A4 = "A4"
+                A4_join = "A4_join"
+                A5 = "A5"
 
         # if not arcpy.Exists(output):
         #     arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
@@ -225,22 +264,22 @@ class GenerateBaseMap(object):
 
         messages.addMessage("第二步:计算建设用地方案C和法定图则S的重叠部分A1...")
         arcpy.env.workspace = output
-        arcpy.Clip_analysis(statutory, construction, "A1")
-        UpdateField("A1", source_field, '"法定图则"')
+        arcpy.Clip_analysis(statutory, construction, A1)
+        UpdateField(A1, source_field, '"法定图则"')
 
         messages.addMessage("第三步:计算建设用地方案C内且法定图则S外的部分A2...")
-        arcpy.Erase_analysis(construction, statutory, r"in_memory\A2")
+        arcpy.Erase_analysis(construction, statutory, A2)
 
         messages.addMessage("第四步:计算原总规P与A2的重叠部分A3...")
-        arcpy.Clip_analysis(planning, r"in_memory\A2", "A3")  # self.output_path + os.path.sep + "A2"
-        UpdateField("A3", source_field, '"总规"')
+        arcpy.Clip_analysis(planning, A2, A3)  # self.output_path + os.path.sep + "A2"
+        UpdateField(A3, source_field, '"总规"')
         #
         messages.addMessage("第五步:计算A2内且原总规P外的A4...")
-        arcpy.Erase_analysis("in_memory\A2", planning, r"in_memory\A4")
-        UpdateField(r"in_memory\A4", source_field, '"补充"')
-        arcpy.SpatialJoin_analysis(r"in_memory\A4", supplement, r"in_memory\A4_join",
+        arcpy.Erase_analysis(A2, planning, A4)
+        UpdateField(A4, source_field, '"补充"')
+        arcpy.SpatialJoin_analysis(A4, supplement, A4_join,
                                    match_option="CLOSEST", search_radius=500)
-        arcpy.MakeFeatureLayer_management(r"in_memory\A4_join", "A4_join_lyr")
+        arcpy.MakeFeatureLayer_management(A4_join, "A4_join_lyr")
         arcpy.SelectLayerByAttribute_management("A4_join_lyr", "NEW_SELECTION", "主类<>'' AND 主类 IS NOT NULL")
         arcpy.CopyFeatures_management("A4_join_lyr", r"in_memory\non_empty")
 
@@ -248,25 +287,25 @@ class GenerateBaseMap(object):
         arcpy.CopyFeatures_management("A4_join_lyr", r"in_memory\empty")
         values = ["'S'", "'T'"]
         arcpy.CalculateField_management(r"in_memory\empty", maincode_field, random.choice(values), "PYTHON")
-        arcpy.Merge_management([r"in_memory\empty", r"in_memory\non_empty"], "A4")
+        arcpy.Merge_management([r"in_memory\empty", r"in_memory\non_empty"], A4)
 
         messages.addMessage("第六步:合并A1,A3和A4三部分得到A5...")
         fieldMappings = arcpy.FieldMappings()
-        fieldMappings.addTable("A1")
-        fieldMappings.addTable("A3")
-        fieldMappings.addTable("A4")
+        fieldMappings.addTable(A1)
+        fieldMappings.addTable(A3)
+        fieldMappings.addTable(A4)
         output_fields = []
-        A1_fields = arcpy.ListFields("A1")
+        A1_fields = arcpy.ListFields(A1)
         for field in A1_fields:
             output_fields.append(field.name)
 
         for field in fieldMappings.fields:
             if field.name not in output_fields:
                 fieldMappings.removeFieldMap(fieldMappings.findFieldMapIndex(field.name))
-        arcpy.Merge_management(["A1", "A3", "A4"], r"in_memory\A5", fieldMappings)
+        arcpy.Merge_management([A1, A3, A4], A5, fieldMappings)
 
         messages.addMessage("第七步:整理字段并输出结果图层baseMap...")
-        arcpy.SpatialJoin_analysis(r"in_memory\A5", admin_region, r"in_memory\baseMap",  # r"in_memory\baseMap"
+        arcpy.SpatialJoin_analysis(A5, admin_region, r"in_memory\baseMap",  # r"in_memory\baseMap"
                                    match_option="HAVE_THEIR_CENTER_IN")
         arcpy.MakeFeatureLayer_management(r"in_memory\baseMap", "baseMap_lyr")
 
@@ -286,9 +325,9 @@ class GenerateBaseMap(object):
         for field in fieldMappings.fields:
             if field.name not in output_fields:
                 fieldMappings.removeFieldMap(fieldMappings.findFieldMapIndex(field.name))
-        arcpy.Merge_management([r"in_memory\empty", r"in_memory\non_empty"], "baseMap", fieldMappings)
+        arcpy.Merge_management([r"in_memory\empty", r"in_memory\non_empty"], res_table, fieldMappings)
 
-        UpdateField(r"in_memory\baseMap", admin_region_field, '!QNAME!')
+        # UpdateField(res_table, admin_region_field, '!QNAME_1!')
 
         return
 
@@ -302,7 +341,7 @@ class BuildingStat(object):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Building Type Statistics"
         self.description = "建筑量统计."
-        self.canRunInBackground = False
+        self.canRunInBackground = True
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -345,16 +384,16 @@ class BuildingStat(object):
             arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
         # 是否将中间结果输出到硬盘
-        param3 = arcpy.Parameter(
+        param4 = arcpy.Parameter(
             displayName="保存中间结果",
             name="bStorage",
             datatype="Boolean",
             parameterType="Optional",
             direction="input"
         )
-        param3.value = False
+        param4.value = False
 
-        params = [param0, param1, param2, output, param3]
+        params = [param0, param1, param2, output, param4]
         return params
 
     def isLicensed(self):
