@@ -2,8 +2,7 @@
 
 import arcpy
 import os
-import csv
-import codecs
+import re
 import sys
 import random
 import numpy as np
@@ -462,29 +461,70 @@ class BuildingStat(object):
                         elm_arr[order * 3 + 1] = elm_arr[order * 3 + 1] + row[2]
                         elm_arr[order * 3 + 2] = elm_arr[order * 3 + 2] + row[3]
 
-        # stat_table = createBuidingStatTable(self.output_path, "stat_table", id_field, lst)
-        stat_table = createBuidingStatTable("in_memory", "stat_table", id_field, lst)
-
-        with arcpy.da.InsertCursor(stat_table, "*") as cursor:
-            icount = 0
-            for key, value in stat_data.items():
-                if value[0] <= 0:
-                    continue
-                for i in range(len(lst)):
-                    value[3 * i + 3] = value[3 * i + 1] / value[0]
-                row = tuple(np.append([icount, key], value))
-                icount += 1
-                cursor.insertRow(row)
-
         messages.addMessage("第三步:整理字段并输出结果图层buildingStat...")
-        # arcpy.AddIndex_management(res_table, id_field, "index_id")
-        arcpy.JoinField_management(res_table, id_field, stat_table, id_field)
 
+        # stat_table = createBuidingStatTable(self.output_path, "stat_table", id_field, lst)
+        # stat_table = createBuidingStatTable("in_memory", "stat_table", id_field, lst)
+        # 结果图层增加统计字段
+        # arcpy.AddField_management(res_table, "sum", "DOUBLE")
+        field_lst = []
+        field_lst.append(id_field)
+        for entry in lst:
+            arcpy.AddField_management(res_table, entry + "_BArea", "DOUBLE", field_alias=entry + "建筑面积")
+            arcpy.AddField_management(res_table, entry + "_Area", "DOUBLE", field_alias=entry + "占地面积")
+            arcpy.AddField_management(res_table, entry + "_BProp", "DOUBLE", field_alias=entry + "建筑面积比例")
+            field_lst.append(check_field_name(entry + "_BArea"))
+            field_lst.append(check_field_name(entry + "_Area"))
+            field_lst.append(check_field_name(entry + "_BProp"))
+
+        # arcpy.AddMessage(field_lst)
+
+        sorted(stat_data.keys())
+        it = stat_data.iterkeys()
+
+        key = it.next()
+        with arcpy.da.UpdateCursor(res_table, field_names=field_lst) as cursor:
+            for row in cursor:
+                landid = row[0]
+                try:
+                    # arcpy.AddMessage(str(row[0]) + "," + str(row[1]) + "," + str(row[2]))
+                    while key < landid:
+                        key = it.next()
+                    if key == landid:
+                        value = stat_data[key]
+                        for i in range(len(lst)):
+                            value[3 * i + 3] = value[3 * i + 1] / value[0]
+                        row = tuple(np.append(row[0], value[1:]))
+                        # arcpy.AddMessage(row)
+                        cursor.updateRow(row)
+                except StopIteration:
+                    break
         return
+        # with arcpy.da.InsertCursor(stat_table, "*") as cursor:
+        #     icount = 0
+        #     for key, value in stat_data.items():
+        #         if value[0] <= 0:
+        #             continue
+        #         for i in range(len(lst)):
+        #             value[3 * i + 3] = value[3 * i + 1] / value[0]
+        #         row = tuple(np.append([icount, key], value))
+        #         icount += 1
+        #         cursor.insertRow(row)
+
+        # arcpy.JoinField_management(res_table, id_field, stat_table, id_field)
+
+
 
 #############################################################################
 #  其他函数
 #############################################################################
+def check_field_name(name):
+    p1 = r'[-!&<>"\'?@=$$~^`#%*()/\\:;{}\[\]|+.]'
+    res = re.sub(p1, '_', name)
+    p2 = r'( +)'
+    return re.sub(p2, '', res)
+
+
 def createBuidingStatTable(output, table_name, id_field, typeLst):
     table_path = arcpy.CreateTable_management(output, table_name)
     arcpy.AddField_management(table_path, id_field, "LONG")
