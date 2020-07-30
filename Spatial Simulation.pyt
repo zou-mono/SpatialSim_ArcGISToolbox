@@ -425,7 +425,7 @@ class BuildingStat(object):
         fm_id = arcpy.FieldMap()
         fm_id.addInputField(res_table, id_field)
         fieldMappings.addFieldMap(fm_id)
-        arcpy.SpatialJoin_analysis(building, res_table, "building_join_baseMap",  # r"in_memory\baseMap"
+        arcpy.SpatialJoin_analysis(building, res_table, r"in_memory\building_join_baseMap",  # r"in_memory\baseMap"
                                    match_option="HAVE_THEIR_CENTER_IN", field_mapping=fieldMappings)
 
         idDic = {}  # 存放bldg_usage和顺序的字典
@@ -441,7 +441,7 @@ class BuildingStat(object):
 
         # 用一个数组来存储每类建筑类型的建筑面积和占地面积，数组的顺序按照idDic
         stat_data = {}
-        with arcpy.da.SearchCursor("building_join_baseMap",
+        with arcpy.da.SearchCursor(r"in_memory\building_join_baseMap",
                                    field_names=[id_field, usage_field, floor_area_field, "SHAPE@AREA"]) as cursor:
             for row in cursor:
                 if row[0] is None:
@@ -462,8 +462,8 @@ class BuildingStat(object):
                         elm_arr[order * 3 + 1] = elm_arr[order * 3 + 1] + row[2]
                         elm_arr[order * 3 + 2] = elm_arr[order * 3 + 2] + row[3]
 
-        stat_table = createBuidingStatTable(self.output_path, "stat_table", id_field, lst)
-        # stat_table = createBuidingStatTable("in_memory", "stat_table", id_field, lst)
+        # stat_table = createBuidingStatTable(self.output_path, "stat_table", id_field, lst)
+        stat_table = createBuidingStatTable("in_memory", "stat_table", id_field, lst)
 
         with arcpy.da.InsertCursor(stat_table, "*") as cursor:
             icount = 0
@@ -477,7 +477,7 @@ class BuildingStat(object):
                 cursor.insertRow(row)
 
         messages.addMessage("第三步:整理字段并输出结果图层buildingStat...")
-        arcpy.AddIndex_management(res_table, id_field, "index_id")
+        # arcpy.AddIndex_management(res_table, id_field, "index_id")
         arcpy.JoinField_management(res_table, id_field, stat_table, id_field)
 
         return
