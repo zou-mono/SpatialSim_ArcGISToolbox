@@ -344,7 +344,17 @@ class BuildingStat(object):
         if not arcpy.Exists(self.output_path):
             arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
-        params = [param0, param1, param2, output]
+        # 是否将中间结果输出到硬盘
+        param3 = arcpy.Parameter(
+            displayName="保存中间结果",
+            name="bStorage",
+            datatype="Boolean",
+            parameterType="Optional",
+            direction="input"
+        )
+        param3.value = False
+
+        params = [param0, param1, param2, output, param3]
         return params
 
     def isLicensed(self):
@@ -399,6 +409,7 @@ class BuildingStat(object):
         baseMap = parameters[1].valueAsText
         usage_table = parameters[2].valueAsText
         output = parameters[3].valueAsText
+        bStorage = parameters[4].value
 
         usage_field = "用地"
         id_field = "landID"
@@ -407,6 +418,14 @@ class BuildingStat(object):
             res_table = "buildingStat.shp"
         elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
             res_table = "buildingStat"
+
+        if not bStorage:
+            building_join_baseMap = r"in_memory\building_join_baseMap"
+        else:
+            if arcpy.Describe(output).workspaceType == 'FileSystem':
+                building_join_baseMap = "building_join_baseMap.shp"
+            elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
+                building_join_baseMap = "building_join_baseMap"
 
         # arcpy.AddMessage(desc.workspaceType)
         # desc = arcpy.Describe(output)
@@ -447,7 +466,7 @@ class BuildingStat(object):
         fm_id = arcpy.FieldMap()
         fm_id.addInputField(res_table, id_field)
         fieldMappings.addFieldMap(fm_id)
-        arcpy.SpatialJoin_analysis(building, res_table, r"in_memory\building_join_baseMap",  # r"in_memory\baseMap"
+        arcpy.SpatialJoin_analysis(building, res_table, building_join_baseMap,  # r"in_memory\baseMap"
                                    match_option="HAVE_THEIR_CENTER_IN", field_mapping=fieldMappings)
 
         idDic = {}  # 存放bldg_usage和顺序的字典
@@ -463,7 +482,7 @@ class BuildingStat(object):
 
         # 用一个数组来存储每类建筑类型的建筑面积和占地面积，数组的顺序按照idDic
         stat_data = {}
-        with arcpy.da.SearchCursor(r"in_memory\building_join_baseMap",
+        with arcpy.da.SearchCursor(building_join_baseMap,
                                    field_names=[id_field, usage_field, floor_area_field, "SHAPE@AREA"]) as cursor:
             for row in cursor:
                 if row[0] is None:
@@ -519,7 +538,10 @@ class BuildingStat(object):
                     if key == landid:
                         value = stat_data[key]
                         for i in range(len(lst)):
-                            value[3 * i + 3] = value[3 * i + 1] / value[0]
+                            if value[0] > 0:
+                                value[3 * i + 3] = value[3 * i + 1] / value[0]
+                            else:
+                                value[3 * i + 3] = 0
                         row = tuple(np.append(row[0], value[1:]))
                         # arcpy.AddMessage(row)
                         cursor.updateRow(row)
