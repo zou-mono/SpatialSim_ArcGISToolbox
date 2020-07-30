@@ -19,3 +19,7 @@ print(arcpy.Describe(output).name)
 print(arcpy.Describe(output).path)
 print(arcpy.Describe(output).dataType)
 print(arcpy.Describe(output).workspaceType)
+
+arcpy.env.workspace = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox"
+output = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox\buildingStat.shp"
+print([f.name for f in arcpy.ListFields("buildingStat.shp")])

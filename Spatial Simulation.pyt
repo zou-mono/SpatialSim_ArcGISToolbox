@@ -108,6 +108,8 @@ class GenerateBaseMap(object):
             direction="input"
         )
         output.value = self.output_path
+        if not arcpy.Exists(self.output_path):
+            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
         params = [param0, param1, param2, param3, param4, param5, param6, output]
         return params
@@ -152,14 +154,11 @@ class GenerateBaseMap(object):
 
         if parameters[7].value > 0:
             output = parameters[7].valueAsText
-            if not arcpy.Exists(arcpy.Describe(output).path):
-                parameters[7].setErrorMessage("目录不存在")
+            if not arcpy.Exists(output):
+                parameters[7].setErrorMessage("工作空间不存在")
                 return
-            if arcpy.Describe(output).dataType != "Workspace":
-                parameters[7].setErrorMessage("必须输入fileGDB路径")
-                return
-            if arcpy.Describe(output).workspaceType != 'LocalDatabase':
-                parameters[7].setErrorMessage("必须输入fileGDB名称")
+            if arcpy.Describe(output).dataType != "Workspace" and arcpy.Describe(output).dataType != "Folder":
+                parameters[7].setErrorMessage("必须输入目录或者文件数据库")
                 return
         return
 
@@ -180,8 +179,9 @@ class GenerateBaseMap(object):
         FAR_field = "容积率"
         admin_region_field = "行政区"
 
-        if not arcpy.Exists(output):
-            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
+        # if not arcpy.Exists(output):
+        #     arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
+        arcpy.env.overwriteOutput = True
         arcpy.env.workspace = output
 
         messages.addMessage("第一步:输入图层字段整理...")
@@ -391,9 +391,6 @@ class BuildingStat(object):
             if arcpy.Describe(output).dataType != "Workspace" and arcpy.Describe(output).dataType != "Folder":
                 parameters[3].setErrorMessage("必须输入目录或者文件数据库")
                 return
-            # if arcpy.Describe(output).workspaceType != 'LocalDatabase':
-            #     parameters[3].setErrorMessage("必须输入fileGDB名称")
-            #     return
         return
 
     def execute(self, parameters, messages):
@@ -406,7 +403,10 @@ class BuildingStat(object):
         usage_field = "用地"
         id_field = "landID"
         floor_area_field = "FLOOR_AREA"
-        res_table = "buildingStat"
+        if arcpy.Describe(output).workspaceType == 'FileSystem':
+            res_table = "buildingStat.shp"
+        elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
+            res_table = "buildingStat"
 
         # arcpy.AddMessage(desc.workspaceType)
         # desc = arcpy.Describe(output)
