@@ -10,6 +10,7 @@ import numpy as np
 reload(sys)
 sys.setdefaultencoding('utf8')
 
+
 class Toolbox(object):
     def __init__(self):
         """Define the toolbox (the name of the toolbox is the name of the
@@ -100,11 +101,11 @@ class GenerateBaseMap(object):
 
         # 输出
         output = arcpy.Parameter(
-            displayName="输出路径",
+            displayName="输出工作空间",
             name="output",
-            datatype="GPFeatureLayer",
+            datatype="DEWorkspace",
             parameterType="Required",
-            direction="output"
+            direction="input"
         )
         output.value = self.output_path
 
@@ -149,6 +150,17 @@ class GenerateBaseMap(object):
                 parameters[6].setErrorMessage("缺少主类字段")
                 return
 
+        if parameters[7].value > 0:
+            output = parameters[7].valueAsText
+            if not arcpy.Exists(arcpy.Describe(output).path):
+                parameters[7].setErrorMessage("目录不存在")
+                return
+            if arcpy.Describe(output).dataType != "Workspace":
+                parameters[7].setErrorMessage("必须输入fileGDB路径")
+                return
+            if arcpy.Describe(output).workspaceType != 'LocalDatabase':
+                parameters[7].setErrorMessage("必须输入fileGDB名称")
+                return
         return
 
     def execute(self, parameters, messages):
@@ -207,7 +219,8 @@ class GenerateBaseMap(object):
 
         # 增加行政区字段
         if not FieldExist(statutory, admin_region_field):
-            arcpy.AddField_management(statutory, admin_region_field, "TEXT", field_is_nullable="NON_NULLABLE", field_length=20)
+            arcpy.AddField_management(statutory, admin_region_field, "TEXT", field_is_nullable="NON_NULLABLE",
+                                      field_length=20)
         # UpdateField(statutory, admin_region_field, "")
 
         messages.addMessage("第二步:计算建设用地方案C和法定图则S的重叠部分A1...")
@@ -219,7 +232,7 @@ class GenerateBaseMap(object):
         arcpy.Erase_analysis(construction, statutory, r"in_memory\A2")
 
         messages.addMessage("第四步:计算原总规P与A2的重叠部分A3...")
-        arcpy.Clip_analysis(planning, r"in_memory\A2", "A3") # self.output_path + os.path.sep + "A2"
+        arcpy.Clip_analysis(planning, r"in_memory\A2", "A3")  # self.output_path + os.path.sep + "A2"
         UpdateField("A3", source_field, '"总规"')
         #
         messages.addMessage("第五步:计算A2内且原总规P外的A4...")
@@ -279,6 +292,7 @@ class GenerateBaseMap(object):
 
         return
 
+
 class BuildingStat(object):
     output_ws_name = "res.gdb"
     dir_name = os.path.dirname(os.path.abspath(__file__))
@@ -320,13 +334,15 @@ class BuildingStat(object):
 
         # 输出
         output = arcpy.Parameter(
-            displayName="输出路径",
+            displayName="输出工作空间",
             name="output",
-            datatype="GPFeatureLayer",
+            datatype="DEWorkspace",
             parameterType="Required",
-            direction="output"
+            direction="input"
         )
         output.value = self.output_path
+        if not arcpy.Exists(self.output_path):
+            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
         params = [param0, param1, param2, output]
         return params
@@ -352,11 +368,13 @@ class BuildingStat(object):
                 return
             if not FieldExist(building, "BLDG_USAGE"):
                 parameters[0].setErrorMessage("缺少建筑物类型字段BLDG_USAGE")
+                return
             if not FieldExist(building, "FLOOR_AREA"):
                 parameters[0].setErrorMessage("缺少建筑面积字段FLOOR_AREA")
+                return
             if not FieldTypeExist(building, "FLOOR_AREA", "Double"):
                 parameters[0].setErrorMessage("建筑面积字段FLOOR_AREA的字段类型必须为Double")
-            return
+                return
 
         if parameters[1].value > 0:
             baseMap = parameters[1].valueAsText
@@ -365,6 +383,17 @@ class BuildingStat(object):
                 parameters[1].setErrorMessage("输入数据几何类型必须为polygon!")
                 return
 
+        if parameters[3].value > 0:
+            output = parameters[3].valueAsText
+            if not arcpy.Exists(output):
+                parameters[3].setErrorMessage("工作空间不存在")
+                return
+            if arcpy.Describe(output).dataType != "Workspace" and arcpy.Describe(output).dataType != "Folder":
+                parameters[3].setErrorMessage("必须输入目录或者文件数据库")
+                return
+            # if arcpy.Describe(output).workspaceType != 'LocalDatabase':
+            #     parameters[3].setErrorMessage("必须输入fileGDB名称")
+            #     return
         return
 
     def execute(self, parameters, messages):
@@ -379,24 +408,18 @@ class BuildingStat(object):
         floor_area_field = "FLOOR_AREA"
         res_table = "buildingStat"
 
-        if not arcpy.Exists(output):
-            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
+        # arcpy.AddMessage(desc.workspaceType)
+        # desc = arcpy.Describe(output)
+        # arcpy.CreateFileGDB_management(desc.path, desc.name)
+        arcpy.env.overwriteOutput = True
         arcpy.env.workspace = output
-
-        # arcpy.MakeFeatureLayer_management(building, "building_lyr")
-        # with arcpy.da.SearchCursor(baseMap, "SHAPE@") as cursor:
-        #     for row in cursor:
-        #         # polygons.append(row[0])
-        #         polygon = row[0]
-        #         # arcpy.CopyFeatures_management(polygons, r'in_memory\geo')
-        #         res = arcpy.SelectLayerByLocation_management("building_lyr", "have_their_center_in", polygon)
-
         messages.addMessage("第一步:输入图层数据整理...")
 
         polygons = []
         with arcpy.da.SearchCursor(baseMap, "SHAPE@") as cursor:
             for row in cursor:
                 polygons.append(row[0])
+                # messages.addMessage(arcpy.env.workspace)
         arcpy.CopyFeatures_management(polygons, res_table)
 
         if not FieldExist(building, usage_field):
@@ -470,9 +493,12 @@ class BuildingStat(object):
         field_lst = []
         field_lst.append(id_field)
         for entry in lst:
-            arcpy.AddField_management(res_table, entry + "_BArea", "DOUBLE", field_alias=entry + "建筑面积")
-            arcpy.AddField_management(res_table, entry + "_Area", "DOUBLE", field_alias=entry + "占地面积")
-            arcpy.AddField_management(res_table, entry + "_BProp", "DOUBLE", field_alias=entry + "建筑面积比例")
+            arcpy.AddField_management(res_table, check_field_name(entry + "_BArea"), "DOUBLE",
+                                      field_alias=entry + "建筑面积")
+            arcpy.AddField_management(res_table, check_field_name(entry + "_Area"), "DOUBLE",
+                                      field_alias=entry + "占地面积")
+            arcpy.AddField_management(res_table, check_field_name(entry + "_BProp"), "DOUBLE",
+                                      field_alias=entry + "建筑面积比例")
             field_lst.append(check_field_name(entry + "_BArea"))
             field_lst.append(check_field_name(entry + "_Area"))
             field_lst.append(check_field_name(entry + "_BProp"))
@@ -500,20 +526,6 @@ class BuildingStat(object):
                 except StopIteration:
                     break
         return
-        # with arcpy.da.InsertCursor(stat_table, "*") as cursor:
-        #     icount = 0
-        #     for key, value in stat_data.items():
-        #         if value[0] <= 0:
-        #             continue
-        #         for i in range(len(lst)):
-        #             value[3 * i + 3] = value[3 * i + 1] / value[0]
-        #         row = tuple(np.append([icount, key], value))
-        #         icount += 1
-        #         cursor.insertRow(row)
-
-        # arcpy.JoinField_management(res_table, id_field, stat_table, id_field)
-
-
 
 #############################################################################
 #  其他函数

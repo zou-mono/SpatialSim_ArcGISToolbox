@@ -12,3 +12,10 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 print(range(10)[2:])
+
+output = r"E:\Source code\¿Õ¼äÄ£Äâ\SpatialSim_ArcGISToolbox\res.gdb"
+print(arcpy.env.workspace)
+print(arcpy.Describe(output).name)
+print(arcpy.Describe(output).path)
+print(arcpy.Describe(output).dataType)
+print(arcpy.Describe(output).workspaceType)
