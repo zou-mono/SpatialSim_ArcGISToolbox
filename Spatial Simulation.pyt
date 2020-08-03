@@ -380,8 +380,6 @@ class BuildingStat(object):
             direction="input"
         )
         output.value = self.output_path
-        if not arcpy.Exists(self.output_path):
-            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
         # 是否将中间结果输出到硬盘
         param4 = arcpy.Parameter(
@@ -431,6 +429,9 @@ class BuildingStat(object):
             if desc.shapeType != "Polygon":
                 parameters[1].setErrorMessage("输入数据几何类型必须为polygon!")
                 return
+
+        if not arcpy.Exists(self.output_path):
+            arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
 
         if parameters[3].value > 0:
             output = parameters[3].valueAsText
