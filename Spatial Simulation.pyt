@@ -429,6 +429,24 @@ class BuildingStat(object):
             if desc.shapeType != "Polygon":
                 parameters[1].setErrorMessage("输入数据几何类型必须为polygon!")
                 return
+            if not FieldExist(baseMap, "容积率"):
+                parameters[1].setErrorMessage("缺少容积率字段容积率")
+                return
+            if not FieldExist(baseMap, "remark"):
+                parameters[1].setErrorMessage("缺少字段remark")
+                return
+            if not FieldExist(baseMap, "行政区"):
+                parameters[1].setErrorMessage("缺少字段行政区")
+                return
+            if not FieldExist(baseMap, "主类"):
+                parameters[1].setErrorMessage("缺少字段主类")
+                return
+            if not FieldExist(baseMap, "来源"):
+                parameters[1].setErrorMessage("缺少字段来源")
+                return
+            if not FieldExist(baseMap, "状态"):
+                parameters[1].setErrorMessage("缺少字段状态")
+                return
 
         if not arcpy.Exists(self.output_path):
             arcpy.CreateFileGDB_management(self.dir_name, self.output_ws_name)
@@ -453,7 +471,13 @@ class BuildingStat(object):
 
         usage_field = "用地"
         id_field = "landID"
-        floor_area_field = "FLOOR_AREA"
+        FAR_field = "容积率"
+        FLOOR_AREA_field="FLOOR_AREA"
+        region_field = "行政区"
+        source_field = "来源"
+        status_field = "状态"
+        maincode_field = "主类"
+
         if arcpy.Describe(output).workspaceType == 'FileSystem':
             res_table = "buildingStat.shp"
         elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
@@ -474,12 +498,24 @@ class BuildingStat(object):
         arcpy.env.workspace = output
         messages.addMessage("第一步:输入图层数据整理...")
 
-        polygons = []
-        with arcpy.da.SearchCursor(baseMap, "SHAPE@") as cursor:
-            for row in cursor:
-                polygons.append(row[0])
-                # messages.addMessage(arcpy.env.workspace)
-        arcpy.CopyFeatures_management(polygons, res_table)
+        in_fms = arcpy.FieldMappings()
+        in_fms.addTable(baseMap)
+        out_fms = arcpy.FieldMappings()
+        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(FAR_field)))
+        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(region_field)))
+        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(source_field)))
+        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(status_field)))
+        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(maincode_field)))
+
+        arcpy.FeatureClassToFeatureClass_conversion(
+            baseMap, output, res_table, field_mapping=out_fms)
+
+        # polygons = []
+        # with arcpy.da.SearchCursor(baseMap, "SHAPE@") as cursor:
+        #     for row in cursor:
+        #         polygons.append(row[0])
+        #         # messages.addMessage(arcpy.env.workspace)
+        # arcpy.CopyFeatures_management(polygons, res_table)
 
         if not FieldExist(building, usage_field):
             arcpy.AddField_management(building, usage_field, "TEXT", field_length=20)
@@ -523,7 +559,7 @@ class BuildingStat(object):
         # 用一个数组来存储每类建筑类型的建筑面积和占地面积，数组的顺序按照idDic
         stat_data = {}
         with arcpy.da.SearchCursor(building_join_baseMap,
-                                   field_names=[id_field, usage_field, floor_area_field, "SHAPE@AREA"]) as cursor:
+                                   field_names=[id_field, usage_field, FLOOR_AREA_field, "SHAPE@AREA"]) as cursor:
             for row in cursor:
                 if row[0] is None:
                     continue
