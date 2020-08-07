@@ -223,6 +223,7 @@ class GenerateBaseMap(object):
         arcpy.env.overwriteOutput = True
         arcpy.env.workspace = output
 
+        messages.addMessage("")
         messages.addMessage("第一步:输入图层字段整理...")
         # 图则图层增加状态字段，remark字段中包含”现状“或者”保留“文字的要素填写”现状保留“
         if not FieldExist(statutory, status_field):
@@ -496,6 +497,7 @@ class BuildingStat(object):
         # arcpy.CreateFileGDB_management(desc.path, desc.name)
         arcpy.env.overwriteOutput = True
         arcpy.env.workspace = output
+        messages.addMessage("")
         messages.addMessage("第一步:输入图层数据整理...")
 
         in_fms = arcpy.FieldMappings()
