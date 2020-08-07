@@ -500,15 +500,15 @@ class BuildingStat(object):
 
         in_fms = arcpy.FieldMappings()
         in_fms.addTable(baseMap)
-        out_fms = arcpy.FieldMappings()
-        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(FAR_field)))
-        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(region_field)))
-        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(source_field)))
-        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(status_field)))
-        out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(maincode_field)))
+        # out_fms = arcpy.FieldMappings()
+        # out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(FAR_field)))
+        # out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(region_field)))
+        # out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(source_field)))
+        # out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(status_field)))
+        # out_fms.addFieldMap(in_fms.getFieldMap(in_fms.findFieldMapIndex(maincode_field)))
 
         arcpy.FeatureClassToFeatureClass_conversion(
-            baseMap, output, res_table, field_mapping=out_fms)
+            baseMap, output, res_table, field_mapping=in_fms)
 
         # polygons = []
         # with arcpy.da.SearchCursor(baseMap, "SHAPE@") as cursor:
