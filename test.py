@@ -13,13 +13,20 @@ sys.setdefaultencoding('utf8')
 
 print(range(10)[2:])
 
-output = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox\res.gdb"
-print(arcpy.env.workspace)
-print(arcpy.Describe(output).name)
-print(arcpy.Describe(output).path)
-print(arcpy.Describe(output).dataType)
-print(arcpy.Describe(output).workspaceType)
+a = np.array([1,3,4,5])
+b = np.array([-1,-2,-3,-4])
+c = np.array([1,3,4,5])
+print(np.append(1,2))
+print(np.concatenate(([1],[21], b,c),axis=0))
 
-arcpy.env.workspace = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox"
-output = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox\buildingStat.shp"
-print([f.name for f in arcpy.ListFields("buildingStat.shp")])
+
+# output = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox\res.gdb"
+# print(arcpy.env.workspace)
+# print(arcpy.Describe(output).name)
+# print(arcpy.Describe(output).path)
+# print(arcpy.Describe(output).dataType)
+# print(arcpy.Describe(output).workspaceType)
+#
+# arcpy.env.workspace = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox"
+# output = r"E:\Source code\空间模拟\SpatialSim_ArcGISToolbox\buildingStat.shp"
+# print([f.name for f in arcpy.ListFields("buildingStat.shp")])

@@ -492,6 +492,8 @@ class BuildingStat(object):
             elif arcpy.Describe(output).workspaceType == 'LocalDatabase':
                 building_join_baseMap = "building_join_baseMap"
 
+        # res_table = LaunderName(output, res_table)
+
         # arcpy.AddMessage(desc.workspaceType)
         # desc = arcpy.Describe(output)
         # arcpy.CreateFileGDB_management(desc.path, desc.name)
@@ -589,6 +591,10 @@ class BuildingStat(object):
         # arcpy.AddField_management(res_table, "sum", "DOUBLE")
         field_lst = []
         field_lst.append(id_field)
+        arcpy.AddField_management(res_table, check_field_name("maxType"), "TEXT",
+                                  field_alias="最大占比类型", field_length=20)
+        field_lst.append(check_field_name("maxType"))
+
         for entry in lst:
             arcpy.AddField_management(res_table, check_field_name(entry + "_BArea"), "DOUBLE",
                                       field_alias=entry + "建筑面积")
@@ -615,12 +621,21 @@ class BuildingStat(object):
                         key = it.next()
                     if key == landid:
                         value = stat_data[key]
+                        max_area = -1
+                        max_type = ""
                         for i in range(len(lst)):
                             if value[0] > 0:
                                 value[3 * i + 3] = value[3 * i + 1] / value[0]
+                                if value[3 * i + 1] > max_area:
+                                    max_area = value[3 * i + 1]
+                                    max_type = lst[i]
                             else:
                                 value[3 * i + 3] = 0
-                        row = tuple(np.append(row[0], value[1:]))
+
+                        if max_area > 0:
+                            row = tuple(np.concatenate(([row[0], max_type], value[1:]), axis=0))
+                        else:
+                            row = tuple(np.concatenate(([row[0], ""], value[1:]), axis=0))
                         # arcpy.AddMessage(row)
                         cursor.updateRow(row)
                 except StopIteration:
