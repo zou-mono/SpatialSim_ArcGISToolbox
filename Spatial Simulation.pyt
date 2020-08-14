@@ -596,25 +596,37 @@ class BuildingStat(object):
         arcpy.AddField_management(res_table, check_field_name("maxBAType"), "TEXT",
                                   field_alias="最大建筑面积类型", field_length=20)
         field_lst.append(check_field_name("maxBAType"))
+        arcpy.AddField_management(res_table, check_field_name("maxBAProp"), "TEXT",
+                                  field_alias="最大建筑面积比例", field_length=20)
+        field_lst.append(check_field_name("maxBAProp"))
         arcpy.AddField_management(res_table, check_field_name("maxFAType"), "TEXT",
-                                  field_alias="最大占地面积类型", field_length=20)
+                                  field_alias="最大用地面积类型", field_length=20)
         field_lst.append(check_field_name("maxFAType"))
+        arcpy.AddField_management(res_table, check_field_name("maxFAProp"), "TEXT",
+                                  field_alias="最大用地面积比例", field_length=20)
+        field_lst.append(check_field_name("maxFAProp"))
 
         for entry in lst:
             arcpy.AddField_management(res_table, check_field_name(entry + "_BArea"), "DOUBLE",
                                       field_alias=entry + "建筑面积")
             arcpy.AddField_management(res_table, check_field_name(entry + "_Area"), "DOUBLE",
-                                      field_alias=entry + "占地面积")
+                                      field_alias=entry + "用地面积")
             arcpy.AddField_management(res_table, check_field_name(entry + "_BProp"), "DOUBLE",
                                       field_alias=entry + "建筑面积比例")
             arcpy.AddField_management(res_table, check_field_name(entry + "_FProp"), "DOUBLE",
-                                      field_alias=entry + "占地面积比例")
+                                      field_alias=entry + "用地面积比例")
             field_lst.append(check_field_name(entry + "_BArea"))
             field_lst.append(check_field_name(entry + "_Area"))
             field_lst.append(check_field_name(entry + "_BProp"))
             field_lst.append(check_field_name(entry + "_FProp"))
 
-        # arcpy.AddMessage(field_lst)
+        arcpy.AddField_management(res_table, check_field_name("sumBA"), "TEXT",
+                                      field_alias="总建筑面积", field_length=20)
+        field_lst.append(check_field_name("sumBA"))
+
+        arcpy.AddField_management(res_table, check_field_name("sumFA"), "TEXT",
+                                  field_alias="总用地面积", field_length=20)
+        field_lst.append(check_field_name("sumFA"))
 
         sorted(stat_data.keys())
         it = stat_data.iterkeys()
@@ -633,12 +645,15 @@ class BuildingStat(object):
                         max_baType = ""
                         max_fa = -1
                         max_faType = ""
+                        max_baProp = -1
+                        max_faProp = -1
                         for i in range(len(lst)):
                             if value[0] > 0:
                                 value[4 * i + 4] = value[4 * i + 2] / value[0]
                                 if value[4 * i + 2] > max_ba:
                                     max_ba = value[4 * i + 2]
                                     max_baType = lst[i]
+                                    max_baProp = value[4 * i + 4]
                             else:
                                 value[4 * i + 4] = 0
 
@@ -647,17 +662,18 @@ class BuildingStat(object):
                                 if value[4 * i + 3] > max_fa:
                                     max_fa = value[4 * i + 3]
                                     max_faType = lst[i]
+                                    max_faProp = value[4 * i + 5]
                             else:
                                 value[4 * i + 5] = 0
 
                         if max_ba > 0 and max_fa > 0:
-                            row = tuple(np.concatenate(([row[0], max_baType, max_faType], value[2:]), axis=0))
+                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, max_faType, max_faProp], value[2:], value[0:2]), axis=0))
                         elif max_ba > 0 >= max_fa:
-                            row = tuple(np.concatenate(([row[0], max_baType, ""], value[2:]), axis=0))
+                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, "", 0], value[2:], value[0:2]), axis=0))
                         elif max_ba <= 0 < max_fa:
-                            row = tuple(np.concatenate(([row[0], "", max_faType], value[2:]), axis=0))
+                            row = tuple(np.concatenate(([row[0], "", 0, max_faType, max_faProp], value[2:], value[0:2]), axis=0))
                         else:
-                            row = tuple(np.concatenate(([row[0], "", ""], value[2:]), axis=0))
+                            row = tuple(np.concatenate(([row[0], "", 0, "", 0], value[2:], value[0:2]), axis=0))
 
                         cursor.updateRow(row)
                 except StopIteration:
