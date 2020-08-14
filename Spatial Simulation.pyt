@@ -572,16 +572,18 @@ class BuildingStat(object):
                     order = idDic[row[1]]
                     # arcpy.AddMessage(str(order))
                     if row[0] not in stat_data.keys():
-                        elm_arr = np.zeros(3 * len(idDic) + 1)
+                        elm_arr = np.zeros(4 * len(idDic) + 2)
                         elm_arr[0] = row[2]
-                        elm_arr[order * 3 + 1] = row[2]
-                        elm_arr[order * 3 + 2] = row[3]
+                        elm_arr[1] = row[3]
+                        elm_arr[order * 4 + 2] = row[2]
+                        elm_arr[order * 4 + 3] = row[3]
                         stat_data[row[0]] = elm_arr.copy()
                     else:
                         elm_arr = stat_data[row[0]]
                         elm_arr[0] = elm_arr[0] + row[2]
-                        elm_arr[order * 3 + 1] = elm_arr[order * 3 + 1] + row[2]
-                        elm_arr[order * 3 + 2] = elm_arr[order * 3 + 2] + row[3]
+                        elm_arr[1] = elm_arr[1] + row[3]
+                        elm_arr[order * 4 + 2] = elm_arr[order * 4 + 2] + row[2]
+                        elm_arr[order * 4 + 3] = elm_arr[order * 4 + 3] + row[3]
 
         messages.addMessage("第三步:整理字段并输出结果图层buildingStat...")
 
@@ -591,9 +593,12 @@ class BuildingStat(object):
         # arcpy.AddField_management(res_table, "sum", "DOUBLE")
         field_lst = []
         field_lst.append(id_field)
-        arcpy.AddField_management(res_table, check_field_name("maxType"), "TEXT",
-                                  field_alias="最大占比类型", field_length=20)
-        field_lst.append(check_field_name("maxType"))
+        arcpy.AddField_management(res_table, check_field_name("maxBAType"), "TEXT",
+                                  field_alias="最大建筑面积类型", field_length=20)
+        field_lst.append(check_field_name("maxBAType"))
+        arcpy.AddField_management(res_table, check_field_name("maxFAType"), "TEXT",
+                                  field_alias="最大占地面积类型", field_length=20)
+        field_lst.append(check_field_name("maxFAType"))
 
         for entry in lst:
             arcpy.AddField_management(res_table, check_field_name(entry + "_BArea"), "DOUBLE",
@@ -602,9 +607,12 @@ class BuildingStat(object):
                                       field_alias=entry + "占地面积")
             arcpy.AddField_management(res_table, check_field_name(entry + "_BProp"), "DOUBLE",
                                       field_alias=entry + "建筑面积比例")
+            arcpy.AddField_management(res_table, check_field_name(entry + "_FProp"), "DOUBLE",
+                                      field_alias=entry + "占地面积比例")
             field_lst.append(check_field_name(entry + "_BArea"))
             field_lst.append(check_field_name(entry + "_Area"))
             field_lst.append(check_field_name(entry + "_BProp"))
+            field_lst.append(check_field_name(entry + "_FProp"))
 
         # arcpy.AddMessage(field_lst)
 
@@ -621,22 +629,36 @@ class BuildingStat(object):
                         key = it.next()
                     if key == landid:
                         value = stat_data[key]
-                        max_area = -1
-                        max_type = ""
+                        max_ba = -1
+                        max_baType = ""
+                        max_fa = -1
+                        max_faType = ""
                         for i in range(len(lst)):
                             if value[0] > 0:
-                                value[3 * i + 3] = value[3 * i + 1] / value[0]
-                                if value[3 * i + 1] > max_area:
-                                    max_area = value[3 * i + 1]
-                                    max_type = lst[i]
+                                value[4 * i + 4] = value[4 * i + 2] / value[0]
+                                if value[4 * i + 2] > max_ba:
+                                    max_ba = value[4 * i + 2]
+                                    max_baType = lst[i]
                             else:
-                                value[3 * i + 3] = 0
+                                value[4 * i + 4] = 0
 
-                        if max_area > 0:
-                            row = tuple(np.concatenate(([row[0], max_type], value[1:]), axis=0))
+                            if value[1] > 0:
+                                value[4 * i + 5] = value[4 * i + 3] / value[1]
+                                if value[4 * i + 3] > max_fa:
+                                    max_fa = value[4 * i + 3]
+                                    max_faType = lst[i]
+                            else:
+                                value[4 * i + 5] = 0
+
+                        if max_ba > 0 and max_fa > 0:
+                            row = tuple(np.concatenate(([row[0], max_baType, max_faType], value[2:]), axis=0))
+                        elif max_ba > 0 >= max_fa:
+                            row = tuple(np.concatenate(([row[0], max_baType, ""], value[2:]), axis=0))
+                        elif max_ba <= 0 < max_fa:
+                            row = tuple(np.concatenate(([row[0], "", max_faType], value[2:]), axis=0))
                         else:
-                            row = tuple(np.concatenate(([row[0], ""], value[1:]), axis=0))
-                        # arcpy.AddMessage(row)
+                            row = tuple(np.concatenate(([row[0], "", ""], value[2:]), axis=0))
+
                         cursor.updateRow(row)
                 except StopIteration:
                     break
