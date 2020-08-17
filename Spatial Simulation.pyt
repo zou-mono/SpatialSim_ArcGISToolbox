@@ -620,18 +620,17 @@ class BuildingStat(object):
             field_lst.append(check_field_name(entry + "_BProp"))
             field_lst.append(check_field_name(entry + "_FProp"))
 
-        arcpy.AddField_management(res_table, check_field_name("sumBA"), "TEXT",
-                                      field_alias="总建筑面积", field_length=20)
+        arcpy.AddField_management(res_table, check_field_name("sumBA"), "DOUBLE", field_alias="总建筑面积")
         field_lst.append(check_field_name("sumBA"))
 
-        arcpy.AddField_management(res_table, check_field_name("sumFA"), "TEXT",
-                                  field_alias="总用地面积", field_length=20)
+        arcpy.AddField_management(res_table, check_field_name("sumFA"), "DOUBLE", field_alias="总用地面积")
         field_lst.append(check_field_name("sumFA"))
 
         sorted(stat_data.keys())
         it = stat_data.iterkeys()
 
         key = it.next()
+        field_lst.append("SHAPE@AREA")
         with arcpy.da.UpdateCursor(res_table, field_names=field_lst) as cursor:
             for row in cursor:
                 landid = row[0]
@@ -657,8 +656,9 @@ class BuildingStat(object):
                             else:
                                 value[4 * i + 4] = 0
 
-                            if value[1] > 0:
-                                value[4 * i + 5] = value[4 * i + 3] / value[1]
+                            if row[len(field_lst)-1] > 0:
+                                # value[4 * i + 5] = value[4 * i + 3] / value[1]
+                                value[4 * i + 5] = value[4 * i + 3] / row[len(field_lst)-1]
                                 if value[4 * i + 3] > max_fa:
                                     max_fa = value[4 * i + 3]
                                     max_faType = lst[i]
@@ -667,13 +667,13 @@ class BuildingStat(object):
                                 value[4 * i + 5] = 0
 
                         if max_ba > 0 and max_fa > 0:
-                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, max_faType, max_faProp], value[2:], value[0:2]), axis=0))
+                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, max_faType, max_faProp], value[2:], value[0:2], [row[len(field_lst)-1]]), axis=0))
                         elif max_ba > 0 >= max_fa:
-                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, "", 0], value[2:], value[0:2]), axis=0))
+                            row = tuple(np.concatenate(([row[0], max_baType, max_baProp, "", 0], value[2:], value[0:2], [row[len(field_lst)-1]]), axis=0))
                         elif max_ba <= 0 < max_fa:
-                            row = tuple(np.concatenate(([row[0], "", 0, max_faType, max_faProp], value[2:], value[0:2]), axis=0))
+                            row = tuple(np.concatenate(([row[0], "", 0, max_faType, max_faProp], value[2:], value[0:2], [row[len(field_lst)-1]]), axis=0))
                         else:
-                            row = tuple(np.concatenate(([row[0], "", 0, "", 0], value[2:], value[0:2]), axis=0))
+                            row = tuple(np.concatenate(([row[0], "", 0, "", 0], value[2:], value[0:2], [row[len(field_lst)-1]]), axis=0))
 
                         cursor.updateRow(row)
                 except StopIteration:
