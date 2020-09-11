@@ -596,14 +596,14 @@ class BuildingStat(object):
         arcpy.AddField_management(res_table, check_field_name("maxBAType"), "TEXT",
                                   field_alias="最大建筑面积类型", field_length=20)
         field_lst.append(check_field_name("maxBAType"))
-        arcpy.AddField_management(res_table, check_field_name("maxBAProp"), "TEXT",
-                                  field_alias="最大建筑面积比例", field_length=20)
+        arcpy.AddField_management(res_table, check_field_name("maxBAProp"), "DOUBLE",
+                                  field_alias="最大建筑面积比例")
         field_lst.append(check_field_name("maxBAProp"))
         arcpy.AddField_management(res_table, check_field_name("maxFAType"), "TEXT",
                                   field_alias="最大用地面积类型", field_length=20)
         field_lst.append(check_field_name("maxFAType"))
-        arcpy.AddField_management(res_table, check_field_name("maxFAProp"), "TEXT",
-                                  field_alias="最大用地面积比例", field_length=20)
+        arcpy.AddField_management(res_table, check_field_name("maxFAProp"), "DOUBLE",
+                                  field_alias="最大用地面积比例")
         field_lst.append(check_field_name("maxFAProp"))
 
         for entry in lst:
